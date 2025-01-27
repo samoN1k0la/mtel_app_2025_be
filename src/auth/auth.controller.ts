@@ -30,5 +30,29 @@ export class AuthController {
     const { name, email, password, location, accountType } = body;
     return this.authService.register(name, email, password, location, accountType);
   }
+
+  @Post('expert')
+  async expert(@Body() body: {
+    email: string;
+    primaryJob: string;
+    secondaryJob: string;
+    description: string;
+    portfolio: string;
+    images: string;
+    servicePrice: string;
+    servicePricingType: string;
+  }) {
+    const { email, primaryJob, secondaryJob, description, portfolio, images, servicePrice, servicePricingType } = body;
+    return this.authService.becomeExpert(
+      email,
+      primaryJob,
+      secondaryJob,
+      description,
+      portfolio,
+      images,
+      servicePrice,
+      servicePricingType
+    );
+  }
 }
 

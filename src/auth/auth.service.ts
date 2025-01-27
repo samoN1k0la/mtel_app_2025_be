@@ -63,5 +63,47 @@ export class AuthService {
       throw new UnauthorizedException('Error during registration');
     }
   }
+
+  // Finish your profile (become an expert)
+  async becomeExpert(
+    email: string, // Email to identify the document in Firestore
+    primaryJob: string,
+    secondaryJob: string,
+    description: string,
+    portfolio: string,
+    images: string,
+    servicePrice: string,
+    servicePricingType: string
+  ) {
+    try {
+      // Query Firestore to find the user's document by email
+      const usersCollection = firestore.collection('users');
+      const querySnapshot = await usersCollection.where('email', '==', email).get();
+
+      if (querySnapshot.empty) {
+        throw new Error('User not found');
+      }
+
+      // Assuming email is unique, there should only be one matching document
+      const userDocRef = querySnapshot.docs[0].ref;
+
+      // Update the user's document with the expert details
+      await userDocRef.update({
+        primaryJob,
+        secondaryJob,
+        description,
+        portfolio,
+        images,
+        servicePrice,
+        servicePricingType,
+        accountType: "Ekspert",
+      });
+
+      return { status: 'OK', message: 'Profile updated to expert successfully' };
+    } catch (error) {
+      console.error('Error updating profile to expert:', error.message);
+      throw new Error('Unable to update profile to expert');
+    }
+  }
 }
 
