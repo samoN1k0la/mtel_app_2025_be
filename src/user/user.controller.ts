@@ -19,5 +19,14 @@ export class UserController {
       return { status: 'Error', message: error.message };
     }
   }
+
+  // Get users by profession
+  @Get('list')
+  async getUsersByJob(
+    @Query('primaryJob') primaryJob?: string,
+    @Query('secondaryJob') secondaryJob?: string,
+  ) {
+    return this.userService.getUsersByJob(primaryJob, secondaryJob);
+  }
 }
 
