@@ -31,7 +31,8 @@ export class AuthService {
     email: string,
     password: string,
     location: string,
-    accountType: string
+    accountType: string,
+    profileImage: string,
   ) {
     try {
       // Create a new user in Firebase Authentication
@@ -55,6 +56,8 @@ export class AuthService {
         images: "",
         servicePricingType: "",
         servicePrice: "",
+        reviews: [],
+        profileImage: profileImage,
       });
 
       return { status: 'OK', uid: userRecord.uid, email: userRecord.email, message: 'Registration successful' };

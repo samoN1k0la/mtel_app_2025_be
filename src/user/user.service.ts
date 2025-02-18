@@ -1,7 +1,9 @@
 import { 
   Injectable, 
   NotFoundException,
-  ForbiddenException
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { firestore } from '../firebase.config';
@@ -38,7 +40,7 @@ export class UserService {
     primaryJob?: string, 
     secondaryJob?: string,
     routedSearchQuery?: string,
-    filterData?: Record<string, any>
+    filterData?: any 
   ) {
     try {
       const usersCollection = firestore.collection('users');
@@ -47,6 +49,13 @@ export class UserService {
       let queryRoutedSearchQuery;
       let queryLocation;
       let users: any[] = [];
+      
+      console.log({
+        primaryJob,
+        secondaryJob,
+        routedSearchQuery,
+        filterData,
+      });
 
       // Construct query for primaryJob if provided
       if (primaryJob) {
@@ -60,8 +69,9 @@ export class UserService {
 
       // Construct query for routedSearchQuery if provided
       if (routedSearchQuery) {
-        queryRoutedSearchQuery = usersCollection.where('primaryJob', '>=', routedSearchQuery)
-                                                .where('primaryJob', '<=', routedSearchQuery);
+        queryRoutedSearchQuery = usersCollection
+          .where('primaryJob', '>=', routedSearchQuery)
+          .where('primaryJob', '<=', routedSearchQuery + '\uf8ff');
       }
 
       // Construct query for location filter if provided
@@ -72,13 +82,10 @@ export class UserService {
 
       // Apply price filters if provided
       if (filterData) {
-        if (filterData.maxPrice && filterData.maxPrice !== "") {
-          queryPrimaryJob = queryPrimaryJob?.where('servicePrice', '<=', parseFloat(filterData.maxPrice));
-          querySecondaryJob = querySecondaryJob?.where('servicePrice', '<=', parseFloat(filterData.maxPrice));
-        }
-        if (filterData.minPrice && filterData.minPrice !== "") {
-          queryPrimaryJob = queryPrimaryJob?.where('servicePrice', '>=', parseFloat(filterData.minPrice));
-          querySecondaryJob = querySecondaryJob?.where('servicePrice', '>=', parseFloat(filterData.minPrice));
+        if (filterData.priceType && filterData.priceType !== "") {
+          queryPrimaryJob = queryPrimaryJob?.where('servicePricingType', '==', filterData.priceType);
+          querySecondaryJob = querySecondaryJob?.where('servicePricingType', '==', filterData.priceType);
+          queryRoutedSearchQuery = queryRoutedSearchQuery?.where('servicePricingType', '==', filterData.priceType);
         }
       }
 
@@ -86,39 +93,48 @@ export class UserService {
       if (queryPrimaryJob) {
         const snapshot = await queryPrimaryJob.get();
         snapshot.docs.forEach((doc) => users.push(doc.data()));
-        console.log(users);
       }
 
       if (querySecondaryJob) {
         const snapshot = await querySecondaryJob.get();
         snapshot.docs.forEach((doc) => users.push(doc.data()));
-        console.log(users);
       }
 
       if (queryRoutedSearchQuery) {
         const snapshot = await queryRoutedSearchQuery.get();
         snapshot.docs.forEach((doc) => users.push(doc.data()));
-        console.log(users);
       }
 
       if (queryLocation) {
         const snapshot = await queryLocation.get();
         snapshot.docs.forEach((doc) => users.push(doc.data()));
-        console.log(users);
       }
 
-      // Remove duplicates based on email
-      /*users = users.filter((value, index, self) =>
+      // Remove duplicates based on email if needed
+      users = users.filter((value, index, self) =>
         index === self.findIndex((t) => t.email === value.email)
-      );*/
-
+      );
+      console.log(users);
       return { status: 'OK', users };
     } catch (error) {
       console.error('Error fetching users:', error.message);
       throw new Error('Error fetching users');
     }
   }
+  
  
+  async updateUserInfo(email: string, updateData: Record<string, any>) {
+    const usersCollection = firestore.collection('users');
+    const snapshot = await usersCollection.where('email', '==', email).get();
+
+    if (snapshot.empty) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const userDoc = snapshot.docs[0];
+    await userDoc.ref.update(updateData);
+    return { success: true, message: 'User updated successfully' };
+  }
 
   async addReviewByEmail(
     userEmail: string, 
@@ -181,9 +197,12 @@ export class UserService {
     const totalReviews = userData.reviews.length;
     const sumRatings = userData.reviews.reduce((sum, review) => sum + parseInt(review.rating), 0);
     const averageRating = sumRatings / totalReviews;
-    console.log(typeof sumRatings);
-    console.log(typeof averageRating);
-    console.log(typeof totalReviews);
+
+    await userDoc.ref.update({
+      averageRating: parseFloat(averageRating.toFixed(2)),
+      totalReviews,
+    });
+
     return {
       averageRating: parseFloat(averageRating.toFixed(2)), // Round to 2 decimals
       reviewCount: totalReviews,

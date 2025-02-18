@@ -1,4 +1,14 @@
-import { Controller, Get, Query, Post, Body, Headers } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Query, 
+  Post, 
+  Body, 
+  Headers, 
+  Patch,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { firebaseAuth } from '../firebase.config';
 
@@ -29,31 +39,11 @@ export class UserController {
     @Query('routedSearchQuery') routedSearchQuery?: string,
     @Query('filterData') filterData?: string
   ) {
-    let filterParsed;
-    if (filterData) {
-      if (typeof filterData === 'string') {
-        try {
-          filterParsed = JSON.parse(filterData);
-        } catch (error) {
-          throw new Error('Invalid filter data format');
-        }
-      } else {
-        throw new Error('filterData must be a stringified JSON object');
-      }
-    }
-
-    console.log({
-      primaryJob, 
-      secondaryJob, 
-      routedSearchQuery, 
-      filterParsed
-    });
-
     return this.userService.getUsersByJobAndFilters(
       primaryJob, 
       secondaryJob,
       routedSearchQuery,
-      filterParsed
+      filterData
     );
   }
 
@@ -79,6 +69,44 @@ export class UserController {
   @Get('rating')
   async getUserRating(@Query('email') email: string) {
     return this.userService.getUserRatingByEmail(email);
+  }
+
+  @Patch('update')
+  async updateUser(@Body() body: any) {
+    const { email, field, value } = body;
+
+    if (!email || !field) {
+      throw new HttpException('Missing required parameters', HttpStatus.BAD_REQUEST);
+    }
+
+    // Prepare the data to update. If 'field' is an array, update all fields with the same value.
+    const updateData = {};
+    if (Array.isArray(field)) {
+      if (!Array.isArray(value)) {
+        throw new HttpException(
+          'Expected value to be an array when field is an array',
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      if (field.length !== value.length) {
+        throw new HttpException(
+          'Field and value arrays must have the same length',
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      field.forEach((f: string, index: number) => {
+        updateData[f] = value[index];
+      });
+    } else {
+      updateData[field] = value;
+    }
+
+    try {
+      const result = await this.userService.updateUserInfo(email, updateData);
+      return result;
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
   }
 }
 

@@ -26,9 +26,10 @@ export class AuthController {
     password: string; 
     location: string;
     accountType: string;
+    profileImage: string;
   }) {
-    const { name, email, password, location, accountType } = body;
-    return this.authService.register(name, email, password, location, accountType);
+    const { name, email, password, location, accountType, profileImage } = body;
+    return this.authService.register(name, email, password, location, accountType, profileImage);
   }
 
   @Post('expert')
